@@ -16,20 +16,14 @@ export default function Shops() {
   const [selectedShop, setSelectedShop] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const shopSales = selectedShop 
-    ? mockSales.filter(s => s.shopId === selectedShop)
-    : [];
+  const shopSales = selectedShop ? mockSales.filter(s => s.shopId === selectedShop) : [];
 
   const handleAdd = () => {
-    toast({
-      title: "Success",
-      description: "Medical shop added successfully",
-    });
+    toast({ title: "Success", description: "Medical shop added successfully" });
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Medical Shops</h1>
@@ -37,53 +31,29 @@ export default function Shops() {
         </div>
         <Dialog>
           <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Shop
-            </Button>
+            <Button className="gap-2"><Plus className="h-4 w-4" />Add Shop</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Medical Shop</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Add New Medical Shop</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Shop Name</Label>
-                <Input placeholder="Enter shop name" />
-              </div>
-              <div className="space-y-2">
-                <Label>Owner Name</Label>
-                <Input placeholder="Enter owner name" />
-              </div>
+              <div className="space-y-2"><Label>Shop Name</Label><Input placeholder="Enter shop name" /></div>
+              <div className="space-y-2"><Label>Owner Name</Label><Input placeholder="Enter owner name" /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Phone</Label>
-                  <Input placeholder="+1-555-0123" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input type="email" placeholder="email@shop.com" />
-                </div>
+                <div className="space-y-2"><Label>Phone</Label><Input placeholder="Phone number" /></div>
+                <div className="space-y-2"><Label>Email</Label><Input type="email" placeholder="email@shop.com" /></div>
               </div>
-              <div className="space-y-2">
-                <Label>Address</Label>
-                <Input placeholder="Enter shop address" />
-              </div>
+              <div className="space-y-2"><Label>GST Number</Label><Input placeholder="e.g. 37GGUPM4892N1Z1" /></div>
+              <div className="space-y-2"><Label>D.L. Number</Label><Input placeholder="e.g. 20B 33249" /></div>
+              <div className="space-y-2"><Label>Address</Label><Input placeholder="Enter shop address" /></div>
               <Button onClick={handleAdd} className="w-full">Add Shop</Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Shops Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle>All Medical Shops ({shops.length})</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>All Medical Shops ({shops.length})</CardTitle></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
@@ -91,7 +61,7 @@ export default function Shops() {
                   <TableHead>Shop Name</TableHead>
                   <TableHead>Owner</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead>GST Number</TableHead>
                   <TableHead>Total Sales</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -102,55 +72,40 @@ export default function Shops() {
                     <TableCell className="font-medium">{shop.name}</TableCell>
                     <TableCell>{shop.ownerName}</TableCell>
                     <TableCell>{shop.phone}</TableCell>
-                    <TableCell>{shop.email}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-success text-success-foreground">
-                        ${shop.totalSales.toLocaleString()}
-                      </Badge>
-                    </TableCell>
+                    <TableCell className="font-mono text-xs">{shop.gstNumber || '-'}</TableCell>
+                    <TableCell><Badge className="bg-success text-success-foreground">₹{shop.totalSales.toLocaleString()}</Badge></TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => setSelectedShop(shop.id)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setSelectedShop(shop.id)}><Eye className="h-4 w-4" /></Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-3xl">
-                            <DialogHeader>
-                              <DialogTitle>{shop.name} - Sales History</DialogTitle>
-                            </DialogHeader>
+                          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                            <DialogHeader><DialogTitle>{shop.name} - Sales History</DialogTitle></DialogHeader>
                             <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted p-4">
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Owner</p>
-                                  <p className="font-medium">{shop.ownerName}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Total Sales</p>
-                                  <p className="font-medium">${shop.totalSales.toLocaleString()}</p>
-                                </div>
+                              <div className="grid grid-cols-3 gap-4 rounded-lg bg-muted p-4">
+                                <div><p className="text-sm text-muted-foreground">Owner</p><p className="font-medium">{shop.ownerName}</p></div>
+                                <div><p className="text-sm text-muted-foreground">GST</p><p className="font-medium font-mono text-xs">{shop.gstNumber || '-'}</p></div>
+                                <div><p className="text-sm text-muted-foreground">Total Sales</p><p className="font-medium">₹{shop.totalSales.toLocaleString()}</p></div>
                               </div>
                               <Table>
                                 <TableHeader>
                                   <TableRow>
+                                    <TableHead>Invoice #</TableHead>
                                     <TableHead>Date</TableHead>
-                                    <TableHead>Quantity</TableHead>
-                                    <TableHead>Amount</TableHead>
+                                    <TableHead>Items</TableHead>
+                                    <TableHead>Net Payable</TableHead>
                                     <TableHead>Profit</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {shopSales.map((sale) => (
                                     <TableRow key={sale.id}>
-                                      <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
-                                      <TableCell>{sale.quantity.toLocaleString()}</TableCell>
-                                      <TableCell>${sale.totalAmount.toLocaleString()}</TableCell>
-                                      <TableCell className="text-success">${sale.profit.toLocaleString()}</TableCell>
+                                      <TableCell className="font-mono text-sm">{sale.invoiceNumber}</TableCell>
+                                      <TableCell>{new Date(sale.saleDate).toLocaleDateString('en-IN')}</TableCell>
+                                      <TableCell>{sale.items.length} items</TableCell>
+                                      <TableCell>₹{sale.netPayable.toLocaleString()}</TableCell>
+                                      <TableCell className="text-success">₹{sale.profit.toLocaleString()}</TableCell>
                                     </TableRow>
                                   ))}
                                 </TableBody>
@@ -158,12 +113,8 @@ export default function Shops() {
                             </div>
                           </DialogContent>
                         </Dialog>
-                        <Button variant="ghost" size="icon">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <Button variant="ghost" size="icon"><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
