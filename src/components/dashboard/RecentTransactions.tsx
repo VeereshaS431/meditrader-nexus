@@ -21,8 +21,9 @@ export function RecentTransactions() {
             <TableHeader>
               <TableRow>
                 <TableHead>Type</TableHead>
+                <TableHead>Invoice</TableHead>
                 <TableHead>Party</TableHead>
-                <TableHead>Quantity</TableHead>
+                <TableHead>Items</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Date</TableHead>
               </TableRow>
@@ -31,7 +32,8 @@ export function RecentTransactions() {
               {mockTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell>
-                    <Badge variant={transaction.type === 'purchase' ? 'secondary' : 'default'} className="gap-1">
+                    <Badge variant={transaction.type === 'purchase' ? 'secondary' : 'default'}
+                      className={`gap-1 ${transaction.type === 'sale' ? 'bg-success text-success-foreground' : ''}`}>
                       {transaction.type === 'purchase' ? (
                         <ArrowDownLeft className="h-3 w-3" />
                       ) : (
@@ -40,13 +42,14 @@ export function RecentTransactions() {
                       {transaction.type === 'purchase' ? 'Purchase' : 'Sale'}
                     </Badge>
                   </TableCell>
+                  <TableCell className="font-mono text-sm">{transaction.invoiceNumber}</TableCell>
                   <TableCell className="font-medium">{transaction.party}</TableCell>
-                  <TableCell>{transaction.quantity.toLocaleString()}</TableCell>
+                  <TableCell>{transaction.itemCount} items</TableCell>
                   <TableCell className={transaction.type === 'purchase' ? 'text-destructive' : 'text-success'}>
-                    ${transaction.amount.toLocaleString()}
+                    ₹{transaction.amount.toLocaleString()}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {new Date(transaction.date).toLocaleDateString()}
+                    {new Date(transaction.date).toLocaleDateString('en-IN')}
                   </TableCell>
                 </TableRow>
               ))}
