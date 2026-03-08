@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Sidebar } from "./components/layout/Sidebar";
 import Dashboard from "./pages/Dashboard";
+import Medicines from "./pages/Medicines";
 import Companies from "./pages/Companies";
 import Purchases from "./pages/Purchases";
 import Shops from "./pages/Shops";
@@ -27,6 +28,7 @@ const App = () => (
           <main className="flex-1 overflow-auto bg-background p-8">
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/medicines" element={<Medicines />} />
               <Route path="/companies" element={<Companies />} />
               <Route path="/purchases" element={<Purchases />} />
               <Route path="/shops" element={<Shops />} />
@@ -34,7 +36,6 @@ const App = () => (
               <Route path="/reports" element={<Reports />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
