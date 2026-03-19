@@ -1,20 +1,26 @@
 import { useState } from "react";
-import { Plus, Edit, Trash2, FileText, Package, AlertTriangle, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Package, AlertTriangle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { mockMedicines } from "@/lib/mockData";
+import { useStore } from "@/lib/store";
 import { Medicine } from "@/lib/types";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
+const emptyMed = { name: '', hsnCode: '', pack: '', category: '', manufacturer: '', avgPurchasePrice: 0, sellingPrice: 0, gstPercent: 5, currentStock: 0, reorderLevel: 20 };
+
 export default function Medicines() {
-  const [medicines, setMedicines] = useState<Medicine[]>(mockMedicines);
+  const { medicines, addMedicine, updateMedicine, deleteMedicine } = useStore();
   const [search, setSearch] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [form, setForm] = useState(emptyMed);
+  const [editId, setEditId] = useState('');
   const { toast } = useToast();
 
   const filtered = medicines.filter(m =>
@@ -24,8 +30,48 @@ export default function Medicines() {
   );
 
   const handleAdd = () => {
+    if (!form.name) { toast({ title: "Error", description: "Medicine name is required", variant: "destructive" }); return; }
+    addMedicine({ ...form, id: crypto.randomUUID() });
+    setForm(emptyMed);
+    setAddOpen(false);
     toast({ title: "Success", description: "Medicine added successfully" });
   };
+
+  const handleEdit = () => {
+    updateMedicine(editId, form);
+    setEditOpen(false);
+    toast({ title: "Updated", description: "Medicine updated successfully" });
+  };
+
+  const openEdit = (m: Medicine) => {
+    setEditId(m.id);
+    setForm({ name: m.name, hsnCode: m.hsnCode, pack: m.pack, category: m.category, manufacturer: m.manufacturer, avgPurchasePrice: m.avgPurchasePrice, sellingPrice: m.sellingPrice, gstPercent: m.gstPercent, currentStock: m.currentStock, reorderLevel: m.reorderLevel });
+    setEditOpen(true);
+  };
+
+  const renderForm = (onSubmit: () => void, btnText: string) => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2"><Label>Medicine Name</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. EUPEN 1GM" /></div>
+        <div className="space-y-2"><Label>HSN Code</Label><Input value={form.hsnCode} onChange={e => setForm({ ...form, hsnCode: e.target.value })} placeholder="e.g. 3004" /></div>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2"><Label>Pack</Label><Input value={form.pack} onChange={e => setForm({ ...form, pack: e.target.value })} placeholder="e.g. 10S" /></div>
+        <div className="space-y-2"><Label>Category</Label><Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="e.g. Antibiotics" /></div>
+        <div className="space-y-2"><Label>Manufacturer</Label><Input value={form.manufacturer} onChange={e => setForm({ ...form, manufacturer: e.target.value })} placeholder="e.g. Cipla" /></div>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2"><Label>Purchase Price (₹)</Label><Input type="number" value={form.avgPurchasePrice || ''} onChange={e => setForm({ ...form, avgPurchasePrice: Number(e.target.value) })} /></div>
+        <div className="space-y-2"><Label>Selling Price (₹)</Label><Input type="number" value={form.sellingPrice || ''} onChange={e => setForm({ ...form, sellingPrice: Number(e.target.value) })} /></div>
+        <div className="space-y-2"><Label>GST %</Label><Input type="number" value={form.gstPercent || ''} onChange={e => setForm({ ...form, gstPercent: Number(e.target.value) })} /></div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2"><Label>Current Stock</Label><Input type="number" value={form.currentStock || ''} onChange={e => setForm({ ...form, currentStock: Number(e.target.value) })} /></div>
+        <div className="space-y-2"><Label>Reorder Level</Label><Input type="number" value={form.reorderLevel || ''} onChange={e => setForm({ ...form, reorderLevel: Number(e.target.value) })} /></div>
+      </div>
+      <Button onClick={onSubmit} className="w-full">{btnText}</Button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -34,92 +80,39 @@ export default function Medicines() {
           <h1 className="text-3xl font-bold">Medicines</h1>
           <p className="text-muted-foreground">Manage your drug inventory & stock</p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" />Add Medicine</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Add New Medicine</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Medicine Name</Label><Input placeholder="e.g. EUPEN 1GM" /></div>
-                <div className="space-y-2"><Label>HSN Code</Label><Input placeholder="e.g. 3004" /></div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2"><Label>Pack</Label><Input placeholder="e.g. 10S" /></div>
-                <div className="space-y-2"><Label>Category</Label><Input placeholder="e.g. Antibiotics" /></div>
-                <div className="space-y-2"><Label>Manufacturer</Label><Input placeholder="e.g. Cipla" /></div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2"><Label>Purchase Price (₹)</Label><Input type="number" placeholder="0" /></div>
-                <div className="space-y-2"><Label>Selling Price (₹)</Label><Input type="number" placeholder="0" /></div>
-                <div className="space-y-2"><Label>GST %</Label><Input type="number" placeholder="5" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Opening Stock</Label><Input type="number" placeholder="0" /></div>
-                <div className="space-y-2"><Label>Reorder Level</Label><Input type="number" placeholder="20" /></div>
-              </div>
-              <Button onClick={handleAdd} className="w-full">Add Medicine</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button className="gap-2" onClick={() => { setForm(emptyMed); setAddOpen(true); }}><Plus className="h-4 w-4" />Add Medicine</Button>
       </div>
 
-      {/* Stats Cards */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Add New Medicine</DialogTitle></DialogHeader>{renderForm(handleAdd, "Add Medicine")}</DialogContent>
+      </Dialog>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Edit Medicine</DialogTitle></DialogHeader>{renderForm(handleEdit, "Update Medicine")}</DialogContent>
+      </Dialog>
+
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="shadow-soft">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-primary/10 p-2"><Package className="h-5 w-5 text-primary" /></div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Medicines</p>
-                <p className="text-2xl font-bold">{medicines.length}</p>
+        {[
+          { label: 'Total Medicines', value: medicines.length, icon: Package, color: 'bg-primary/10 text-primary' },
+          { label: 'In Stock', value: medicines.filter(m => m.currentStock > m.reorderLevel).length, icon: Package, color: 'bg-success/10 text-success' },
+          { label: 'Low Stock', value: medicines.filter(m => m.currentStock <= m.reorderLevel && m.currentStock > 0).length, icon: AlertTriangle, color: 'bg-warning/10 text-warning' },
+          { label: 'Out of Stock', value: medicines.filter(m => m.currentStock === 0).length, icon: AlertTriangle, color: 'bg-destructive/10 text-destructive' },
+        ].map(item => (
+          <Card key={item.label} className="shadow-soft">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className={`rounded-lg p-2 ${item.color.split(' ')[0]}`}><item.icon className={`h-5 w-5 ${item.color.split(' ')[1]}`} /></div>
+                <div><p className="text-sm text-muted-foreground">{item.label}</p><p className="text-2xl font-bold">{item.value}</p></div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-soft">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-success/10 p-2"><Package className="h-5 w-5 text-success" /></div>
-              <div>
-                <p className="text-sm text-muted-foreground">In Stock</p>
-                <p className="text-2xl font-bold">{medicines.filter(m => m.currentStock > m.reorderLevel).length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-soft">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-warning/10 p-2"><AlertTriangle className="h-5 w-5 text-warning" /></div>
-              <div>
-                <p className="text-sm text-muted-foreground">Low Stock</p>
-                <p className="text-2xl font-bold">{medicines.filter(m => m.currentStock <= m.reorderLevel && m.currentStock > 0).length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-soft">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-destructive/10 p-2"><AlertTriangle className="h-5 w-5 text-destructive" /></div>
-              <div>
-                <p className="text-sm text-muted-foreground">Out of Stock</p>
-                <p className="text-2xl font-bold">{medicines.filter(m => m.currentStock === 0).length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Search */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input placeholder="Search medicines..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
       </div>
 
-      {/* Table */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <Card className="shadow-soft">
           <CardHeader><CardTitle>All Medicines ({filtered.length})</CardTitle></CardHeader>
@@ -127,15 +120,8 @@ export default function Medicines() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Medicine Name</TableHead>
-                  <TableHead>HSN Code</TableHead>
-                  <TableHead>Pack</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Purchase ₹</TableHead>
-                  <TableHead>Selling ₹</TableHead>
-                  <TableHead>GST %</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Medicine Name</TableHead><TableHead>HSN Code</TableHead><TableHead>Pack</TableHead><TableHead>Category</TableHead>
+                  <TableHead>Stock</TableHead><TableHead>Purchase ₹</TableHead><TableHead>Selling ₹</TableHead><TableHead>GST %</TableHead><TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -146,8 +132,7 @@ export default function Medicines() {
                     <TableCell>{med.pack}</TableCell>
                     <TableCell><Badge variant="secondary">{med.category}</Badge></TableCell>
                     <TableCell>
-                      <Badge variant={med.currentStock <= med.reorderLevel ? 'destructive' : 'outline'}
-                        className={med.currentStock > med.reorderLevel ? 'text-success border-success' : ''}>
+                      <Badge variant={med.currentStock <= med.reorderLevel ? 'destructive' : 'outline'} className={med.currentStock > med.reorderLevel ? 'text-success border-success' : ''}>
                         {med.currentStock}
                       </Badge>
                     </TableCell>
@@ -155,9 +140,9 @@ export default function Medicines() {
                     <TableCell>₹{med.sellingPrice}</TableCell>
                     <TableCell>{med.gstPercent}%</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon"><Edit className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(med)}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => { deleteMedicine(med.id); toast({ title: "Deleted", description: `${med.name} removed` }); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
