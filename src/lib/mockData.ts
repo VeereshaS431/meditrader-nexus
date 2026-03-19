@@ -1,4 +1,4 @@
-import { Company, Medicine, Purchase, PurchaseItem, MedicalShop, Sale, SaleItem, MonthlyData, Transaction } from './types';
+import { Vendor, Medicine, Purchase, PurchaseItem, MedicalShop, Sale, SaleItem, MonthlyData, Transaction } from './types';
 
 export const mockMedicines: Medicine[] = [
   { id: 'm1', name: 'EUPEN 1GM', hsnCode: '3004', pack: '1S', category: 'Antibiotics', manufacturer: 'Cipla', currentStock: 120, reorderLevel: 50, avgPurchasePrice: 148, sellingPrice: 180, gstPercent: 5 },
@@ -13,7 +13,7 @@ export const mockMedicines: Medicine[] = [
   { id: 'm10', name: 'CALPOL 500', hsnCode: '30049011', pack: '10S', category: 'Analgesics', manufacturer: 'GSK', currentStock: 250, reorderLevel: 50, avgPurchasePrice: 12, sellingPrice: 20, gstPercent: 5 },
 ];
 
-export const mockCompanies: Company[] = [
+export const mockVendors: Vendor[] = [
   { id: '1', name: 'Rudra Medical Distributors', contactPerson: 'Ramesh Kumar', phone: '6303435070', email: 'rudra@medicals.com', address: 'D.No.7-2-125a, Ground Floor, Vydyanadham Street, Amalapuram, E.G Dist, AP - 533201', gstNumber: '37DBEPR9766Q1ZC', dlNumber: 'WLF20B/2025/AP/001037', totalPurchases: 78390, createdAt: '2024-01-15' },
   { id: '2', name: 'Sri Pharma Agencies', contactPerson: 'Suresh Babu', phone: '9876543210', email: 'sripharma@gmail.com', address: '45, Gandhi Road, Kakinada, AP', gstNumber: '37ABCDE1234F1Z5', totalPurchases: 156000, createdAt: '2024-02-20' },
   { id: '3', name: 'Lakshmi Drug House', contactPerson: 'Venkat Rao', phone: '9988776655', email: 'lakshmi.drugs@gmail.com', address: '12, MG Road, Rajahmundry, AP', gstNumber: '37FGHIJ5678K1Z9', totalPurchases: 98500, createdAt: '2024-01-10' },
@@ -43,19 +43,19 @@ const purchaseItems3: PurchaseItem[] = [
 
 export const mockPurchases: Purchase[] = [
   {
-    id: 'p1', invoiceNumber: 'GST0154', companyId: '1', companyName: 'Rudra Medical Distributors',
+    id: 'p1', invoiceNumber: 'GST0154', vendorId: '1', vendorName: 'Rudra Medical Distributors',
     purchaseDate: '2025-12-25', items: purchaseItems1,
     grossTotal: 7466, discount: 0, cgst: 186.65, sgst: 186.65, netPayable: 7839,
     receiptUrl: '/receipts/gst0154.pdf', notes: 'Regular monthly order'
   },
   {
-    id: 'p2', invoiceNumber: 'SP-2024-089', companyId: '2', companyName: 'Sri Pharma Agencies',
+    id: 'p2', invoiceNumber: 'SP-2024-089', vendorId: '2', vendorName: 'Sri Pharma Agencies',
     purchaseDate: '2025-12-20', items: purchaseItems2,
     grossTotal: 13550, discount: 200, cgst: 802.2, sgst: 802.2, netPayable: 14954.4,
     receiptUrl: '/receipts/sp089.pdf'
   },
   {
-    id: 'p3', invoiceNumber: 'LDH-2024-045', companyId: '3', companyName: 'Lakshmi Drug House',
+    id: 'p3', invoiceNumber: 'LDH-2024-045', vendorId: '3', vendorName: 'Lakshmi Drug House',
     purchaseDate: '2025-12-18', items: purchaseItems3,
     grossTotal: 3840, discount: 0, cgst: 96, sgst: 96, netPayable: 4032
   },
@@ -131,7 +131,7 @@ export const mockTransactions: Transaction[] = [
   ...mockPurchases.map(p => ({
     id: p.id,
     type: 'purchase' as const,
-    party: p.companyName,
+    party: p.vendorName,
     invoiceNumber: p.invoiceNumber,
     amount: p.netPayable,
     date: p.purchaseDate,
