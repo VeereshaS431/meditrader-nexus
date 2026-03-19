@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Medicines", href: "/medicines", icon: Pill },
-  { name: "Companies", href: "/companies", icon: Building2 },
+  { name: "Vendors", href: "/vendors", icon: Building2 },
   { name: "Purchases", href: "/purchases", icon: ShoppingCart },
   { name: "Medical Shops", href: "/shops", icon: Store },
   { name: "Sales", href: "/sales", icon: TrendingUp },
@@ -26,8 +26,7 @@ const navigation = [
 
 export function Sidebar() {
   return (
-    <div className="flex h-screen w-64 flex-col bg-sidebar border-r border-sidebar-border">
-      {/* Logo */}
+    <div className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col bg-sidebar border-r border-sidebar-border">
       <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
           <Pill className="h-6 w-6 text-sidebar-primary-foreground" />
@@ -38,8 +37,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         {navigation.map((item) => (
           <NavLink
             key={item.name}
@@ -60,13 +58,10 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
       <div className="border-t border-sidebar-border p-4">
         <div className="rounded-lg bg-sidebar-accent/30 p-3">
           <p className="text-xs font-medium text-sidebar-foreground">Need Help?</p>
-          <p className="mt-1 text-xs text-sidebar-foreground/60">
-            Check our documentation
-          </p>
+          <p className="mt-1 text-xs text-sidebar-foreground/60">Check our documentation</p>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-export interface Company {
+export interface Vendor {
   id: string;
   name: string;
   contactPerson: string;
@@ -45,8 +45,8 @@ export interface PurchaseItem {
 export interface Purchase {
   id: string;
   invoiceNumber: string;
-  companyId: string;
-  companyName: string;
+  vendorId: string;
+  vendorName: string;
   purchaseDate: string;
   items: PurchaseItem[];
   grossTotal: number;
@@ -104,7 +104,7 @@ export interface DashboardStats {
   totalPurchases: number;
   totalSales: number;
   totalProfit: number;
-  totalCompanies: number;
+  totalVendors: number;
   totalShops: number;
   totalMedicines: number;
   lowStockCount: number;

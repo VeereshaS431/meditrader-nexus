@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Sidebar } from "./components/layout/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Medicines from "./pages/Medicines";
-import Companies from "./pages/Companies";
+import Vendors from "./pages/Vendors";
 import Purchases from "./pages/Purchases";
 import Shops from "./pages/Shops";
 import Sales from "./pages/Sales";
@@ -25,11 +25,11 @@ const App = () => (
       <BrowserRouter>
         <div className="flex min-h-screen w-full">
           <Sidebar />
-          <main className="flex-1 overflow-auto bg-background p-8">
+          <main className="ml-64 flex-1 h-screen overflow-y-auto bg-background p-6">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/medicines" element={<Medicines />} />
-              <Route path="/companies" element={<Companies />} />
+              <Route path="/vendors" element={<Vendors />} />
               <Route path="/purchases" element={<Purchases />} />
               <Route path="/shops" element={<Shops />} />
               <Route path="/sales" element={<Sales />} />
