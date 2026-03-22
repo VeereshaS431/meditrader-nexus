@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Eye, X, Search, CreditCard, Banknote, IndianRupee } from "lucide-react";
+import { Plus, Trash2, Eye, X, Search, CreditCard, Banknote, IndianRupee, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,8 +31,10 @@ const ITEMS_PER_PAGE = 10;
 const emptyNewMed = { name: '', hsnCode: '', pack: '', category: '', manufacturer: '', gstPercent: 5, sellingPrice: 0 };
 
 export default function Purchases() {
-  const { purchases, vendors, medicines, addPurchase, deletePurchase, addPurchasePayment, addMedicine } = useStore();
+  const { purchases, vendors, medicines, addPurchase, updatePurchase, deletePurchase, addPurchasePayment, addMedicine } = useStore();
   const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState('');
   const [viewOpen, setViewOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [payId, setPayId] = useState('');
@@ -61,6 +63,19 @@ export default function Purchases() {
   const [newMedForm, setNewMedForm] = useState(emptyNewMed);
   const [newMedLineIdx, setNewMedLineIdx] = useState(-1);
 
+  // Searchable dropdown state
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [vendorDropOpen, setVendorDropOpen] = useState(false);
+  const [medSearches, setMedSearches] = useState<string[]>(['']);
+  const [medDropOpen, setMedDropOpen] = useState<boolean[]>([false]);
+
+  const updateMedSearch = (idx: number, val: string) => {
+    const a = [...medSearches]; a[idx] = val; setMedSearches(a);
+  };
+  const updateMedDrop = (idx: number, val: boolean) => {
+    const a = [...medDropOpen]; a[idx] = val; setMedDropOpen(a);
+  };
+
   const getLineAmount = (item: LineItem) => item.quantity * item.rate;
 
   const grossTotal = items.reduce((s, i) => s + getLineAmount(i), 0);
@@ -78,12 +93,23 @@ export default function Purchases() {
     setItems(newItems);
   };
 
-  const addItem = () => setItems([...items, emptyItem()]);
-  const removeItem = (idx: number) => { if (items.length > 1) setItems(items.filter((_, i) => i !== idx)); };
+  const addItem = () => {
+    setItems(prev => [...prev, emptyItem()]);
+    setMedSearches(prev => [...prev, '']);
+    setMedDropOpen(prev => [...prev, false]);
+  };
+  const removeItem = (idx: number) => {
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== idx));
+      setMedSearches(prev => prev.filter((_, i) => i !== idx));
+      setMedDropOpen(prev => prev.filter((_, i) => i !== idx));
+    }
+  };
 
   const resetForm = () => {
     setVendorId(''); setInvoiceNumber(''); setPurchaseDate(new Date().toISOString().split('T')[0]);
     setItems([emptyItem()]); setDiscount(0); setNotes(''); setPaymentMode('cash');
+    setVendorSearch(''); setVendorDropOpen(false); setMedSearches(['']); setMedDropOpen([false]);
   };
 
   const handleAdd = () => {
@@ -117,6 +143,48 @@ export default function Purchases() {
   const handleDelete = (id: string) => {
     deletePurchase(id);
     toast({ title: "Deleted", description: "Purchase removed" });
+  };
+
+  const openEdit = (purchase: typeof purchases[0]) => {
+    setEditId(purchase.id);
+    setVendorId(purchase.vendorId);
+    setInvoiceNumber(purchase.invoiceNumber);
+    setPurchaseDate(purchase.purchaseDate);
+    setDiscount(purchase.discount);
+    setNotes(purchase.notes || '');
+    setPaymentMode(purchase.paymentMode);
+    setItems(purchase.items.map(i => ({
+      medicineId: i.medicineId,
+      batch: i.batch,
+      quantity: i.quantity,
+      freeQty: i.freeQty,
+      expiryDate: i.expiryDate,
+      mrp: i.mrp,
+      rate: i.rate,
+    })));
+    setEditOpen(true);
+  };
+
+  const handleEdit = () => {
+    if (!vendorId || !invoiceNumber) { toast({ title: "Error", description: "Vendor and Invoice Number are required", variant: "destructive" }); return; }
+    if (items.some(i => !i.medicineId || i.quantity <= 0 || i.rate <= 0)) { toast({ title: "Error", description: "All items need medicine, quantity, and rate", variant: "destructive" }); return; }
+    const vendor = vendors.find(v => v.id === vendorId)!;
+    const purchaseItems = items.map(item => {
+      const med = medicines.find(m => m.id === item.medicineId)!;
+      return {
+        id: crypto.randomUUID(), medicineId: item.medicineId, medicineName: med.name,
+        hsnCode: med.hsnCode, pack: med.pack, batch: item.batch, quantity: item.quantity,
+        freeQty: item.freeQty, expiryDate: item.expiryDate, mrp: item.mrp, rate: item.rate,
+        gstPercent: med.gstPercent, amount: item.quantity * item.rate,
+      };
+    });
+    updatePurchase(editId, {
+      vendorId, vendorName: vendor.name, invoiceNumber, purchaseDate,
+      items: purchaseItems, grossTotal, discount, cgst, sgst, netPayable, notes,
+    });
+    setEditOpen(false);
+    resetForm();
+    toast({ title: "Updated", description: "Purchase updated successfully" });
   };
 
   const handlePayment = () => {
@@ -205,10 +273,30 @@ export default function Purchases() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Vendor</Label>
-                <Select value={vendorId} onValueChange={setVendorId}>
-                  <SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger>
-                  <SelectContent>{vendors.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search vendor..."
+                    value={vendorId ? (vendors.find(v => v.id === vendorId)?.name || vendorSearch) : vendorSearch}
+                    onChange={e => { setVendorSearch(e.target.value); setVendorId(''); setVendorDropOpen(true); }}
+                    onFocus={() => setVendorDropOpen(true)}
+                    onBlur={() => setTimeout(() => setVendorDropOpen(false), 150)}
+                  />
+                  {vendorDropOpen && !vendorId && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg max-h-48 overflow-y-auto">
+                      {vendors.filter(v => v.name.toLowerCase().includes(vendorSearch.toLowerCase())).length === 0
+                        ? <div className="px-3 py-2 text-sm text-muted-foreground">No vendors found</div>
+                        : vendors.filter(v => v.name.toLowerCase().includes(vendorSearch.toLowerCase())).map(v => (
+                          <div key={v.id} className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                            onMouseDown={() => { setVendorId(v.id); setVendorSearch(v.name); setVendorDropOpen(false); }}>
+                            <span className="font-medium">{v.name}</span>
+                            <span className="text-muted-foreground ml-2 text-xs">{v.contactPerson}</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2"><Label>Invoice Number</Label><Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="e.g. GST0154" /></div>
               <div className="space-y-2"><Label>Purchase Date</Label><Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} /></div>
@@ -237,10 +325,28 @@ export default function Purchases() {
               {items.map((item, idx) => (
                 <div key={idx} className="grid grid-cols-[2fr,1fr,0.7fr,0.7fr,0.7fr,0.7fr,0.7fr,0.3fr] gap-2 items-center">
                   <div className="flex gap-1">
-                    <Select value={item.medicineId} onValueChange={v => updateItem(idx, 'medicineId', v)}>
-                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>{medicines.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <div className="relative flex-1">
+                      <Input
+                        className="h-9 text-sm pl-2"
+                        placeholder="Search medicine..."
+                        value={item.medicineId ? (medicines.find(m => m.id === item.medicineId)?.name || medSearches[idx] || '') : (medSearches[idx] || '')}
+                        onChange={e => { updateMedSearch(idx, e.target.value); updateItem(idx, 'medicineId', ''); updateMedDrop(idx, true); }}
+                        onFocus={() => updateMedDrop(idx, true)}
+                        onBlur={() => setTimeout(() => updateMedDrop(idx, false), 150)}
+                      />
+                      {medDropOpen[idx] && !item.medicineId && (
+                        <div className="absolute z-50 mt-1 w-72 rounded-md border bg-popover shadow-lg max-h-48 overflow-y-auto">
+                          {medicines.filter(m => m.name.toLowerCase().includes((medSearches[idx] || '').toLowerCase())).length === 0
+                            ? <div className="px-3 py-2 text-sm text-muted-foreground">No medicines found</div>
+                            : medicines.filter(m => m.name.toLowerCase().includes((medSearches[idx] || '').toLowerCase())).map(m => (
+                              <div key={m.id} className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                                onMouseDown={() => { updateItem(idx, 'medicineId', m.id); updateMedSearch(idx, m.name); updateMedDrop(idx, false); }}>
+                                <span className="font-medium">{m.name}</span>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
                     <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" title="New medicine" onClick={() => { setNewMedLineIdx(idx); setNewMedForm(emptyNewMed); setNewMedOpen(true); }}><Plus className="h-3 w-3" /></Button>
                   </div>
                   <Input className="h-9 text-sm" value={item.batch} onChange={e => updateItem(idx, 'batch', e.target.value)} placeholder="Batch" />
@@ -263,6 +369,96 @@ export default function Purchases() {
             </div>
             <div className="space-y-2"><Label>Notes (Optional)</Label><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add any notes..." /></div>
             <Button onClick={handleAdd} className="w-full">Record Purchase</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Purchase Dialog */}
+      <Dialog open={editOpen} onOpenChange={v => { setEditOpen(v); if (!v) resetForm(); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Purchase</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Vendor</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search vendor..."
+                    value={vendorId ? (vendors.find(v => v.id === vendorId)?.name || vendorSearch) : vendorSearch}
+                    onChange={e => { setVendorSearch(e.target.value); setVendorId(''); setVendorDropOpen(true); }}
+                    onFocus={() => setVendorDropOpen(true)}
+                    onBlur={() => setTimeout(() => setVendorDropOpen(false), 150)}
+                  />
+                  {vendorDropOpen && !vendorId && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg max-h-48 overflow-y-auto">
+                      {vendors.filter(v => v.name.toLowerCase().includes(vendorSearch.toLowerCase())).map(v => (
+                        <div key={v.id} className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                          onMouseDown={() => { setVendorId(v.id); setVendorSearch(v.name); setVendorDropOpen(false); }}>
+                          <span className="font-medium">{v.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2"><Label>Invoice Number</Label><Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="e.g. GST0154" /></div>
+              <div className="space-y-2"><Label>Purchase Date</Label><Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} /></div>
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Mode</Label>
+              <RadioGroup value={paymentMode} onValueChange={(v: 'cash' | 'credit') => setPaymentMode(v)} className="flex gap-4">
+                <div className="flex items-center gap-2"><RadioGroupItem value="cash" id="ep-cash" /><Label htmlFor="ep-cash" className="flex items-center gap-1 cursor-pointer"><Banknote className="h-4 w-4" />Cash</Label></div>
+                <div className="flex items-center gap-2"><RadioGroupItem value="credit" id="ep-credit" /><Label htmlFor="ep-credit" className="flex items-center gap-1 cursor-pointer"><CreditCard className="h-4 w-4" />Credit</Label></div>
+              </RadioGroup>
+            </div>
+            <div className="border rounded-lg p-4 space-y-3">
+              <h4 className="font-semibold">Line Items</h4>
+              <div className="grid grid-cols-[2fr,1fr,0.7fr,0.7fr,0.7fr,0.7fr,0.7fr,0.3fr] gap-2 text-xs font-medium text-muted-foreground">
+                <span>Medicine</span><span>Batch</span><span>Qty</span><span>Free</span><span>Expiry</span><span>MRP ₹</span><span>Rate ₹</span><span></span>
+              </div>
+              {items.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-[2fr,1fr,0.7fr,0.7fr,0.7fr,0.7fr,0.7fr,0.3fr] gap-2 items-center">
+                  <div className="relative">
+                    <Input
+                      className="h-9 text-sm pl-2"
+                      placeholder="Search medicine..."
+                      value={item.medicineId ? (medicines.find(m => m.id === item.medicineId)?.name || medSearches[idx] || '') : (medSearches[idx] || '')}
+                      onChange={e => { updateMedSearch(idx, e.target.value); updateItem(idx, 'medicineId', ''); updateMedDrop(idx, true); }}
+                      onFocus={() => updateMedDrop(idx, true)}
+                      onBlur={() => setTimeout(() => updateMedDrop(idx, false), 150)}
+                    />
+                    {medDropOpen[idx] && !item.medicineId && (
+                      <div className="absolute z-50 mt-1 w-72 rounded-md border bg-popover shadow-lg max-h-48 overflow-y-auto">
+                        {medicines.filter(m => m.name.toLowerCase().includes((medSearches[idx] || '').toLowerCase())).map(m => (
+                          <div key={m.id} className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                            onMouseDown={() => { updateItem(idx, 'medicineId', m.id); updateMedSearch(idx, m.name); updateMedDrop(idx, false); }}>
+                            <span className="font-medium">{m.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Input className="h-9 text-sm" value={item.batch} onChange={e => updateItem(idx, 'batch', e.target.value)} placeholder="Batch" />
+                  <Input type="number" className="h-9 text-sm" value={item.quantity || ''} onChange={e => updateItem(idx, 'quantity', Number(e.target.value))} placeholder="0" />
+                  <Input type="number" className="h-9 text-sm" value={item.freeQty || ''} onChange={e => updateItem(idx, 'freeQty', Number(e.target.value))} placeholder="0" />
+                  <Input type="date" className="h-9 text-sm" value={item.expiryDate} onChange={e => updateItem(idx, 'expiryDate', e.target.value)} />
+                  <Input type="number" className="h-9 text-sm" value={item.mrp || ''} onChange={e => updateItem(idx, 'mrp', Number(e.target.value))} placeholder="0" />
+                  <Input type="number" className="h-9 text-sm" value={item.rate || ''} onChange={e => updateItem(idx, 'rate', Number(e.target.value))} placeholder="0" />
+                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeItem(idx)}><X className="h-4 w-4 text-destructive" /></Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" className="gap-1" onClick={addItem}><Plus className="h-3 w-3" />Add Item</Button>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div className="space-y-2"><Label>Discount ₹</Label><Input type="number" value={discount || ''} onChange={e => setDiscount(Number(e.target.value))} /></div>
+              <div className="space-y-2"><Label>CGST ₹</Label><Input value={cgst.toFixed(2)} disabled className="bg-muted" /></div>
+              <div className="space-y-2"><Label>SGST ₹</Label><Input value={sgst.toFixed(2)} disabled className="bg-muted" /></div>
+              <div className="space-y-2"><Label>Net Payable ₹</Label><Input value={netPayable.toFixed(2)} disabled className="bg-muted font-bold" /></div>
+            </div>
+            <div className="space-y-2"><Label>Notes (Optional)</Label><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add any notes..." /></div>
+            <Button onClick={handleEdit} className="w-full">Update Purchase</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -426,6 +622,7 @@ export default function Purchases() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => { setViewId(p.id); setViewOpen(true); }}><Eye className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Edit className="h-4 w-4" /></Button>
                           {p.paymentMode === 'credit' && pending > 0 && (
                             <Button variant="ghost" size="icon" onClick={() => { setPayId(p.id); setPayAmount(0); setPayNotes(''); setPayOpen(true); }}><IndianRupee className="h-4 w-4 text-success" /></Button>
                           )}

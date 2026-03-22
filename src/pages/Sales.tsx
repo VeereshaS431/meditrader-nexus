@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus, Trash2, Eye, Printer, Download, X, Search, CreditCard, Banknote, IndianRupee } from "lucide-react";
+import { Plus, Trash2, Eye, Printer, Download, X, Search, CreditCard, Banknote, IndianRupee, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -27,8 +27,10 @@ const ITEMS_PER_PAGE = 10;
 const emptyNewMed = { name: '', hsnCode: '', pack: '', category: '', manufacturer: '', gstPercent: 5, sellingPrice: 0 };
 
 export default function Sales() {
-  const { sales, shops, medicines, addSale, deleteSale, addSalePayment, addMedicine } = useStore();
+  const { sales, shops, medicines, addSale, updateSale, deleteSale, addSalePayment, addMedicine } = useStore();
   const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState('');
   const [viewOpen, setViewOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [payId, setPayId] = useState('');
@@ -57,6 +59,19 @@ export default function Sales() {
   const [newMedForm, setNewMedForm] = useState(emptyNewMed);
   const [newMedLineIdx, setNewMedLineIdx] = useState(-1);
 
+  // Searchable dropdown state
+  const [shopSearch, setShopSearch] = useState('');
+  const [shopDropOpen, setShopDropOpen] = useState(false);
+  const [medSearches, setMedSearches] = useState<string[]>(['']);
+  const [medDropOpen, setMedDropOpen] = useState<boolean[]>([false]);
+
+  const updateMedSearch = (idx: number, val: string) => {
+    const a = [...medSearches]; a[idx] = val; setMedSearches(a);
+  };
+  const updateMedDrop = (idx: number, val: boolean) => {
+    const a = [...medDropOpen]; a[idx] = val; setMedDropOpen(a);
+  };
+
   const getLineAmount = (item: LineItem) => item.quantity * item.rate;
 
   const grossTotal = items.reduce((s, i) => s + getLineAmount(i), 0);
@@ -74,12 +89,23 @@ export default function Sales() {
     setItems(newItems);
   };
 
-  const addItem = () => setItems([...items, emptyItem()]);
-  const removeItem = (idx: number) => { if (items.length > 1) setItems(items.filter((_, i) => i !== idx)); };
+  const addItem = () => {
+    setItems(prev => [...prev, emptyItem()]);
+    setMedSearches(prev => [...prev, '']);
+    setMedDropOpen(prev => [...prev, false]);
+  };
+  const removeItem = (idx: number) => {
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== idx));
+      setMedSearches(prev => prev.filter((_, i) => i !== idx));
+      setMedDropOpen(prev => prev.filter((_, i) => i !== idx));
+    }
+  };
 
   const resetForm = () => {
     setShopId(''); setInvoiceNumber(`INV-${new Date().getFullYear()}-${String(sales.length + 1).padStart(3, '0')}`);
     setSaleDate(new Date().toISOString().split('T')[0]); setItems([emptyItem()]); setDiscount(0); setPaymentMode('cash');
+    setShopSearch(''); setShopDropOpen(false); setMedSearches(['']); setMedDropOpen([false]);
   };
 
   const handleAdd = () => {
@@ -117,6 +143,31 @@ export default function Sales() {
   const handleDelete = (id: string) => {
     deleteSale(id);
     toast({ title: "Deleted", description: "Sale removed" });
+  };
+
+  const openEdit = (sale: typeof sales[0]) => {
+    setEditId(sale.id);
+    setShopId(sale.shopId);
+    setInvoiceNumber(sale.invoiceNumber);
+    setSaleDate(sale.saleDate);
+    setDiscount(sale.discount);
+    setPaymentMode(sale.paymentMode);
+    setItems(sale.items.map(i => ({ medicineId: i.medicineId, batch: i.batch, quantity: i.quantity, mrp: i.mrp, rate: i.rate })));
+    setEditOpen(true);
+  };
+
+  const handleEdit = () => {
+    if (!shopId || !invoiceNumber) { toast({ title: "Error", description: "Shop and Invoice Number are required", variant: "destructive" }); return; }
+    if (items.some(i => !i.medicineId || i.quantity <= 0 || i.rate <= 0)) { toast({ title: "Error", description: "All items need medicine, quantity, and rate", variant: "destructive" }); return; }
+    const shop = shops.find(s => s.id === shopId)!;
+    const saleItems: SaleItem[] = items.map(item => {
+      const med = medicines.find(m => m.id === item.medicineId)!;
+      return { id: crypto.randomUUID(), medicineId: item.medicineId, medicineName: med.name, hsnCode: med.hsnCode, pack: med.pack, batch: item.batch, quantity: item.quantity, mrp: item.mrp, rate: item.rate, gstPercent: med.gstPercent, amount: item.quantity * item.rate };
+    });
+    const profit = saleItems.reduce((s, si) => { const med = medicines.find(m => m.id === si.medicineId); return s + (si.rate - (med?.avgPurchasePrice || 0)) * si.quantity; }, 0);
+    updateSale(editId, { shopId, shopName: shop.name, invoiceNumber, saleDate, items: saleItems, grossTotal, discount, cgst, sgst, netPayable, profit });
+    setEditOpen(false); resetForm();
+    toast({ title: "Updated", description: "Sale updated successfully" });
   };
 
   const handlePayment = () => {
@@ -216,10 +267,30 @@ export default function Sales() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Medical Shop</Label>
-                <Select value={shopId} onValueChange={setShopId}>
-                  <SelectTrigger><SelectValue placeholder="Select shop" /></SelectTrigger>
-                  <SelectContent>{shops.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search shop..."
+                    value={shopId ? (shops.find(s => s.id === shopId)?.name || shopSearch) : shopSearch}
+                    onChange={e => { setShopSearch(e.target.value); setShopId(''); setShopDropOpen(true); }}
+                    onFocus={() => setShopDropOpen(true)}
+                    onBlur={() => setTimeout(() => setShopDropOpen(false), 150)}
+                  />
+                  {shopDropOpen && !shopId && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg max-h-48 overflow-y-auto">
+                      {shops.filter(s => s.name.toLowerCase().includes(shopSearch.toLowerCase())).length === 0
+                        ? <div className="px-3 py-2 text-sm text-muted-foreground">No shops found</div>
+                        : shops.filter(s => s.name.toLowerCase().includes(shopSearch.toLowerCase())).map(s => (
+                          <div key={s.id} className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                            onMouseDown={() => { setShopId(s.id); setShopSearch(s.name); setShopDropOpen(false); }}>
+                            <span className="font-medium">{s.name}</span>
+                            <span className="text-muted-foreground ml-2 text-xs">{s.ownerName}</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2"><Label>Invoice Number</Label><Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} /></div>
               <div className="space-y-2"><Label>Sale Date</Label><Input type="date" value={saleDate} onChange={e => setSaleDate(e.target.value)} /></div>
@@ -248,10 +319,29 @@ export default function Sales() {
               {items.map((item, idx) => (
                 <div key={idx} className="grid grid-cols-[2fr,1fr,0.7fr,0.7fr,0.7fr,0.7fr,0.3fr] gap-2 items-center">
                   <div className="flex gap-1">
-                    <Select value={item.medicineId} onValueChange={v => updateItem(idx, 'medicineId', v)}>
-                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>{medicines.map(m => <SelectItem key={m.id} value={m.id}>{m.name} (Stock: {m.currentStock})</SelectItem>)}</SelectContent>
-                    </Select>
+                    <div className="relative flex-1">
+                      <Input
+                        className="h-9 text-sm pl-2"
+                        placeholder="Search medicine..."
+                        value={item.medicineId ? (medicines.find(m => m.id === item.medicineId)?.name || medSearches[idx] || '') : (medSearches[idx] || '')}
+                        onChange={e => { updateMedSearch(idx, e.target.value); updateItem(idx, 'medicineId', ''); updateMedDrop(idx, true); }}
+                        onFocus={() => updateMedDrop(idx, true)}
+                        onBlur={() => setTimeout(() => updateMedDrop(idx, false), 150)}
+                      />
+                      {medDropOpen[idx] && !item.medicineId && (
+                        <div className="absolute z-50 mt-1 w-72 rounded-md border bg-popover shadow-lg max-h-48 overflow-y-auto">
+                          {medicines.filter(m => m.name.toLowerCase().includes((medSearches[idx] || '').toLowerCase())).length === 0
+                            ? <div className="px-3 py-2 text-sm text-muted-foreground">No medicines found</div>
+                            : medicines.filter(m => m.name.toLowerCase().includes((medSearches[idx] || '').toLowerCase())).map(m => (
+                              <div key={m.id} className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                                onMouseDown={() => { updateItem(idx, 'medicineId', m.id); updateMedSearch(idx, m.name); updateMedDrop(idx, false); }}>
+                                <span className="font-medium">{m.name}</span>
+                                <span className="text-muted-foreground ml-2 text-xs">Stock: {m.currentStock}</span>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
                     <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" title="New medicine" onClick={() => { setNewMedLineIdx(idx); setNewMedForm(emptyNewMed); setNewMedOpen(true); }}><Plus className="h-3 w-3" /></Button>
                   </div>
                   <Input className="h-9 text-sm" value={item.batch} onChange={e => updateItem(idx, 'batch', e.target.value)} placeholder="Batch" />
@@ -272,6 +362,95 @@ export default function Sales() {
               <div className="space-y-2"><Label>Net Payable ₹</Label><Input value={netPayable.toFixed(2)} disabled className="bg-muted font-bold" /></div>
             </div>
             <Button onClick={handleAdd} className="w-full">Record Sale & Generate Invoice</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Sale Dialog */}
+      <Dialog open={editOpen} onOpenChange={v => { setEditOpen(v); if (!v) resetForm(); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Sale</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Medical Shop</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search shop..."
+                    value={shopId ? (shops.find(s => s.id === shopId)?.name || shopSearch) : shopSearch}
+                    onChange={e => { setShopSearch(e.target.value); setShopId(''); setShopDropOpen(true); }}
+                    onFocus={() => setShopDropOpen(true)}
+                    onBlur={() => setTimeout(() => setShopDropOpen(false), 150)}
+                  />
+                  {shopDropOpen && !shopId && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg max-h-48 overflow-y-auto">
+                      {shops.filter(s => s.name.toLowerCase().includes(shopSearch.toLowerCase())).map(s => (
+                        <div key={s.id} className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                          onMouseDown={() => { setShopId(s.id); setShopSearch(s.name); setShopDropOpen(false); }}>
+                          <span className="font-medium">{s.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2"><Label>Invoice Number</Label><Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Sale Date</Label><Input type="date" value={saleDate} onChange={e => setSaleDate(e.target.value)} /></div>
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Mode</Label>
+              <RadioGroup value={paymentMode} onValueChange={(v: 'cash' | 'credit') => setPaymentMode(v)} className="flex gap-4">
+                <div className="flex items-center gap-2"><RadioGroupItem value="cash" id="e-cash" /><Label htmlFor="e-cash" className="flex items-center gap-1 cursor-pointer"><Banknote className="h-4 w-4" />Cash</Label></div>
+                <div className="flex items-center gap-2"><RadioGroupItem value="credit" id="e-credit" /><Label htmlFor="e-credit" className="flex items-center gap-1 cursor-pointer"><CreditCard className="h-4 w-4" />Credit</Label></div>
+              </RadioGroup>
+            </div>
+            <div className="border rounded-lg p-4 space-y-3">
+              <h4 className="font-semibold">Line Items</h4>
+              <div className="grid grid-cols-[2fr,1fr,0.7fr,0.7fr,0.7fr,0.7fr,0.3fr] gap-2 text-xs font-medium text-muted-foreground">
+                <span>Medicine</span><span>Batch</span><span>Qty</span><span>MRP ₹</span><span>Rate ₹</span><span>Amount ₹</span><span></span>
+              </div>
+              {items.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-[2fr,1fr,0.7fr,0.7fr,0.7fr,0.7fr,0.3fr] gap-2 items-center">
+                  <div className="relative">
+                    <Input
+                      className="h-9 text-sm pl-2"
+                      placeholder="Search medicine..."
+                      value={item.medicineId ? (medicines.find(m => m.id === item.medicineId)?.name || medSearches[idx] || '') : (medSearches[idx] || '')}
+                      onChange={e => { updateMedSearch(idx, e.target.value); updateItem(idx, 'medicineId', ''); updateMedDrop(idx, true); }}
+                      onFocus={() => updateMedDrop(idx, true)}
+                      onBlur={() => setTimeout(() => updateMedDrop(idx, false), 150)}
+                    />
+                    {medDropOpen[idx] && !item.medicineId && (
+                      <div className="absolute z-50 mt-1 w-72 rounded-md border bg-popover shadow-lg max-h-48 overflow-y-auto">
+                        {medicines.filter(m => m.name.toLowerCase().includes((medSearches[idx] || '').toLowerCase())).map(m => (
+                          <div key={m.id} className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                            onMouseDown={() => { updateItem(idx, 'medicineId', m.id); updateMedSearch(idx, m.name); updateMedDrop(idx, false); }}>
+                            <span className="font-medium">{m.name}</span>
+                            <span className="text-muted-foreground ml-2 text-xs">Stock: {m.currentStock}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Input className="h-9 text-sm" value={item.batch} onChange={e => updateItem(idx, 'batch', e.target.value)} placeholder="Batch" />
+                  <Input type="number" className="h-9 text-sm" value={item.quantity || ''} onChange={e => updateItem(idx, 'quantity', Number(e.target.value))} placeholder="0" />
+                  <Input type="number" className="h-9 text-sm" value={item.mrp || ''} onChange={e => updateItem(idx, 'mrp', Number(e.target.value))} placeholder="0" />
+                  <Input type="number" className="h-9 text-sm" value={item.rate || ''} onChange={e => updateItem(idx, 'rate', Number(e.target.value))} placeholder="0" />
+                  <Input type="number" className="h-9 text-sm bg-muted" value={getLineAmount(item) || ''} disabled />
+                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeItem(idx)}><X className="h-4 w-4 text-destructive" /></Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" className="gap-1" onClick={addItem}><Plus className="h-3 w-3" />Add Item</Button>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div className="space-y-2"><Label>Discount ₹</Label><Input type="number" value={discount || ''} onChange={e => setDiscount(Number(e.target.value))} /></div>
+              <div className="space-y-2"><Label>CGST ₹</Label><Input value={cgst.toFixed(2)} disabled className="bg-muted" /></div>
+              <div className="space-y-2"><Label>SGST ₹</Label><Input value={sgst.toFixed(2)} disabled className="bg-muted" /></div>
+              <div className="space-y-2"><Label>Net Payable ₹</Label><Input value={netPayable.toFixed(2)} disabled className="bg-muted font-bold" /></div>
+            </div>
+            <Button onClick={handleEdit} className="w-full">Update Sale</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -484,6 +663,7 @@ export default function Sales() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => { setViewId(sale.id); setViewOpen(true); }}><Eye className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(sale)}><Edit className="h-4 w-4" /></Button>
                           {sale.paymentMode === 'credit' && pending > 0 && (
                             <Button variant="ghost" size="icon" onClick={() => { setPayId(sale.id); setPayAmount(0); setPayNotes(''); setPayOpen(true); }}><IndianRupee className="h-4 w-4 text-success" /></Button>
                           )}
