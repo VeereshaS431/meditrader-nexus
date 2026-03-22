@@ -3,7 +3,7 @@ import { Vendor, Medicine, Purchase, PurchaseItem, MedicalShop, Sale, SaleItem, 
 export const mockMedicines: Medicine[] = [
   { id: 'm1', name: 'EUPEN 1GM', hsnCode: '3004', pack: '1S', category: 'Antibiotics', manufacturer: 'Cipla', currentStock: 120, reorderLevel: 50, avgPurchasePrice: 148, sellingPrice: 180, gstPercent: 5 },
   { id: 'm2', name: 'CITIFIT-2ML INJ', hsnCode: '30049099', pack: '2ML', category: 'Injections', manufacturer: 'Sun Pharma', currentStock: 85, reorderLevel: 30, avgPurchasePrice: 49, sellingPrice: 65, gstPercent: 5 },
-  { id: 'm3', name: 'LABLOL 20MG 4ML', hsnCode: '30049079', pack: '1', category: 'Cardiac', manufacturer: 'Dr. Reddy\'s', currentStock: 15, reorderLevel: 20, avgPurchasePrice: 79, sellingPrice: 100, gstPercent: 5 },
+  { id: 'm3', name: 'LABLOL 20MG 4ML', hsnCode: '30049079', pack: '1', category: 'Cardiac', manufacturer: "Dr. Reddy's", currentStock: 15, reorderLevel: 20, avgPurchasePrice: 79, sellingPrice: 100, gstPercent: 5 },
   { id: 'm4', name: 'NEOMOL 100ML', hsnCode: '30045090', pack: '100ML', category: 'Analgesics', manufacturer: 'Cipla', currentStock: 200, reorderLevel: 60, avgPurchasePrice: 22, sellingPrice: 30, gstPercent: 5 },
   { id: 'm5', name: 'EUPEN 250 MG', hsnCode: '30042019', pack: '250MG', category: 'Antibiotics', manufacturer: 'Cipla', currentStock: 8, reorderLevel: 20, avgPurchasePrice: 110, sellingPrice: 140, gstPercent: 5 },
   { id: 'm6', name: 'AMOXYCLAV 625', hsnCode: '30041090', pack: '10S', category: 'Antibiotics', manufacturer: 'Alkem', currentStock: 150, reorderLevel: 40, avgPurchasePrice: 95, sellingPrice: 125, gstPercent: 12 },
@@ -46,18 +46,26 @@ export const mockPurchases: Purchase[] = [
     id: 'p1', invoiceNumber: 'GST0154', vendorId: '1', vendorName: 'Rudra Medical Distributors',
     purchaseDate: '2025-12-25', items: purchaseItems1,
     grossTotal: 7466, discount: 0, cgst: 186.65, sgst: 186.65, netPayable: 7839,
-    receiptUrl: '/receipts/gst0154.pdf', notes: 'Regular monthly order'
+    receiptUrl: '/receipts/gst0154.pdf', notes: 'Regular monthly order',
+    paymentMode: 'credit', payments: [
+      { id: 'pay1', date: '2025-12-25', amount: 3000, notes: 'Initial payment' },
+      { id: 'pay2', date: '2026-01-02', amount: 2000, notes: 'Week 1' },
+    ], paidAmount: 5000,
   },
   {
     id: 'p2', invoiceNumber: 'SP-2024-089', vendorId: '2', vendorName: 'Sri Pharma Agencies',
     purchaseDate: '2025-12-20', items: purchaseItems2,
     grossTotal: 13550, discount: 200, cgst: 802.2, sgst: 802.2, netPayable: 14954.4,
-    receiptUrl: '/receipts/sp089.pdf'
+    receiptUrl: '/receipts/sp089.pdf',
+    paymentMode: 'cash', payments: [], paidAmount: 14954.4,
   },
   {
     id: 'p3', invoiceNumber: 'LDH-2024-045', vendorId: '3', vendorName: 'Lakshmi Drug House',
     purchaseDate: '2025-12-18', items: purchaseItems3,
-    grossTotal: 3840, discount: 0, cgst: 96, sgst: 96, netPayable: 4032
+    grossTotal: 3840, discount: 0, cgst: 96, sgst: 96, netPayable: 4032,
+    paymentMode: 'credit', payments: [
+      { id: 'pay3', date: '2025-12-20', amount: 1500, notes: 'Partial' },
+    ], paidAmount: 1500,
   },
 ];
 
@@ -95,26 +103,31 @@ export const mockSales: Sale[] = [
   {
     id: 'sale1', invoiceNumber: 'INV-2025-001', shopId: 's1', shopName: 'Sri Lakshmi Manikanta Pharmacy',
     saleDate: '2025-12-27', items: saleItems1,
-    grossTotal: 1200, discount: 0, cgst: 30, sgst: 30, netPayable: 1260,
-    profit: 310
+    grossTotal: 1200, discount: 0, cgst: 30, sgst: 30, netPayable: 1260, profit: 310,
+    paymentMode: 'credit', payments: [
+      { id: 'sp1', date: '2025-12-27', amount: 500, notes: 'Advance' },
+    ], paidAmount: 500,
   },
   {
     id: 'sale2', invoiceNumber: 'INV-2025-002', shopId: 's2', shopName: 'Sai Ram Medical Store',
     saleDate: '2025-12-28', items: saleItems2,
-    grossTotal: 6160, discount: 100, cgst: 336, sgst: 336, netPayable: 6732,
-    profit: 2280
+    grossTotal: 6160, discount: 100, cgst: 336, sgst: 336, netPayable: 6732, profit: 2280,
+    paymentMode: 'cash', payments: [], paidAmount: 6732,
   },
   {
     id: 'sale3', invoiceNumber: 'INV-2025-003', shopId: 's3', shopName: 'Durga Pharmacy',
     saleDate: '2025-12-29', items: saleItems3,
-    grossTotal: 2550, discount: 0, cgst: 63.75, sgst: 63.75, netPayable: 2677.5,
-    profit: 920
+    grossTotal: 2550, discount: 0, cgst: 63.75, sgst: 63.75, netPayable: 2677.5, profit: 920,
+    paymentMode: 'credit', payments: [
+      { id: 'sp2', date: '2026-01-05', amount: 1000, notes: 'Week 1' },
+      { id: 'sp3', date: '2026-01-12', amount: 800, notes: 'Week 2' },
+    ], paidAmount: 1800,
   },
   {
     id: 'sale4', invoiceNumber: 'INV-2025-004', shopId: 's4', shopName: 'Venu Medical & General',
     saleDate: '2025-12-30', items: saleItems4,
-    grossTotal: 1220, discount: 0, cgst: 30.5, sgst: 30.5, netPayable: 1281,
-    profit: 565
+    grossTotal: 1220, discount: 0, cgst: 30.5, sgst: 30.5, netPayable: 1281, profit: 565,
+    paymentMode: 'cash', payments: [], paidAmount: 1281,
   },
 ];
 
@@ -129,21 +142,11 @@ export const mockMonthlyData: MonthlyData[] = [
 
 export const mockTransactions: Transaction[] = [
   ...mockPurchases.map(p => ({
-    id: p.id,
-    type: 'purchase' as const,
-    party: p.vendorName,
-    invoiceNumber: p.invoiceNumber,
-    amount: p.netPayable,
-    date: p.purchaseDate,
-    itemCount: p.items.length,
+    id: p.id, type: 'purchase' as const, party: p.vendorName,
+    invoiceNumber: p.invoiceNumber, amount: p.netPayable, date: p.purchaseDate, itemCount: p.items.length,
   })),
   ...mockSales.map(s => ({
-    id: s.id,
-    type: 'sale' as const,
-    party: s.shopName,
-    invoiceNumber: s.invoiceNumber,
-    amount: s.netPayable,
-    date: s.saleDate,
-    itemCount: s.items.length,
+    id: s.id, type: 'sale' as const, party: s.shopName,
+    invoiceNumber: s.invoiceNumber, amount: s.netPayable, date: s.saleDate, itemCount: s.items.length,
   })),
 ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

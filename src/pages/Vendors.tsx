@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Edit, Trash2, Eye, X } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +13,7 @@ import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
 const emptyVendor = { name: '', contactPerson: '', phone: '', email: '', address: '', gstNumber: '', dlNumber: '' };
+const ITEMS_PER_PAGE = 10;
 
 export default function Vendors() {
   const { vendors, purchases, addVendor, updateVendor, deleteVendor } = useStore();
@@ -22,21 +23,28 @@ export default function Vendors() {
   const [form, setForm] = useState(emptyVendor);
   const [editId, setEditId] = useState('');
   const [viewId, setViewId] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const { toast } = useToast();
+
+  const filtered = vendors.filter(v =>
+    v.name.toLowerCase().includes(search.toLowerCase()) ||
+    v.contactPerson.toLowerCase().includes(search.toLowerCase()) ||
+    (v.gstNumber || '').toLowerCase().includes(search.toLowerCase())
+  );
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const handleAdd = () => {
     if (!form.name) { toast({ title: "Error", description: "Vendor name is required", variant: "destructive" }); return; }
     addVendor({ ...form, id: crypto.randomUUID(), totalPurchases: 0, createdAt: new Date().toISOString().split('T')[0] });
-    setForm(emptyVendor);
-    setAddOpen(false);
+    setForm(emptyVendor); setAddOpen(false);
     toast({ title: "Success", description: "Vendor added successfully" });
   };
 
   const handleEdit = () => {
     if (!form.name) { toast({ title: "Error", description: "Vendor name is required", variant: "destructive" }); return; }
-    updateVendor(editId, form);
-    setForm(emptyVendor);
-    setEditOpen(false);
+    updateVendor(editId, form); setForm(emptyVendor); setEditOpen(false);
     toast({ title: "Updated", description: "Vendor updated successfully" });
   };
 
@@ -53,6 +61,11 @@ export default function Vendors() {
 
   const vendorPurchases = purchases.filter(p => p.vendorId === viewId);
   const viewVendor = vendors.find(v => v.id === viewId);
+
+  // Credit summary for vendor
+  const vendorCreditPurchases = vendorPurchases.filter(p => p.paymentMode === 'credit');
+  const totalPending = vendorCreditPurchases.reduce((s, p) => s + (p.netPayable - p.paidAmount), 0);
+  const totalPaid = vendorPurchases.reduce((s, p) => s + p.paidAmount, 0);
 
   const renderForm = (onSubmit: () => void, btnText: string) => (
     <div className="space-y-4">
@@ -79,32 +92,27 @@ export default function Vendors() {
         <Button className="gap-2" onClick={() => { setForm(emptyVendor); setAddOpen(true); }}><Plus className="h-4 w-4" />Add Vendor</Button>
       </div>
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Add New Vendor</DialogTitle></DialogHeader>
-          {renderForm(handleAdd, "Add Vendor")}
-        </DialogContent>
-      </Dialog>
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input placeholder="Search vendors..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
+      </div>
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Edit Vendor</DialogTitle></DialogHeader>
-          {renderForm(handleEdit, "Update Vendor")}
-        </DialogContent>
-      </Dialog>
+      <Dialog open={addOpen} onOpenChange={setAddOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Add New Vendor</DialogTitle></DialogHeader>{renderForm(handleAdd, "Add Vendor")}</DialogContent></Dialog>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Edit Vendor</DialogTitle></DialogHeader>{renderForm(handleEdit, "Update Vendor")}</DialogContent></Dialog>
 
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{viewVendor?.name} - Purchase History</DialogTitle></DialogHeader>
           {viewVendor && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4 rounded-lg bg-muted p-4">
+              <div className="grid grid-cols-4 gap-4 rounded-lg bg-muted p-4">
                 <div><p className="text-sm text-muted-foreground">Contact</p><p className="font-medium">{viewVendor.contactPerson}</p></div>
                 <div><p className="text-sm text-muted-foreground">GST</p><p className="font-medium font-mono text-xs">{viewVendor.gstNumber || '-'}</p></div>
-                <div><p className="text-sm text-muted-foreground">Total Purchases</p><p className="font-medium">₹{viewVendor.totalPurchases.toLocaleString()}</p></div>
+                <div><p className="text-sm text-muted-foreground">Total Paid</p><p className="font-medium text-success">₹{totalPaid.toLocaleString()}</p></div>
+                <div><p className="text-sm text-muted-foreground">Pending</p><p className="font-medium text-destructive">₹{totalPending.toLocaleString()}</p></div>
               </div>
               <Table>
-                <TableHeader><TableRow><TableHead>Invoice #</TableHead><TableHead>Date</TableHead><TableHead>Items</TableHead><TableHead>Net Payable</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Invoice #</TableHead><TableHead>Date</TableHead><TableHead>Items</TableHead><TableHead>Net Payable</TableHead><TableHead>Mode</TableHead><TableHead>Paid</TableHead><TableHead>Pending</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {vendorPurchases.map(p => (
                     <TableRow key={p.id}>
@@ -112,9 +120,12 @@ export default function Vendors() {
                       <TableCell>{new Date(p.purchaseDate).toLocaleDateString('en-IN')}</TableCell>
                       <TableCell>{p.items.length} items</TableCell>
                       <TableCell>₹{p.netPayable.toLocaleString()}</TableCell>
+                      <TableCell><Badge variant={p.paymentMode === 'cash' ? 'secondary' : 'outline'}>{p.paymentMode}</Badge></TableCell>
+                      <TableCell className="text-success">₹{p.paidAmount.toLocaleString()}</TableCell>
+                      <TableCell className="text-destructive">₹{(p.netPayable - p.paidAmount).toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
-                  {vendorPurchases.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No purchases found</TableCell></TableRow>}
+                  {vendorPurchases.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No purchases found</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </div>
@@ -124,21 +135,17 @@ export default function Vendors() {
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <Card className="shadow-soft">
-          <CardHeader><CardTitle>All Vendors ({vendors.length})</CardTitle></CardHeader>
+          <CardHeader><CardTitle>All Vendors ({filtered.length})</CardTitle></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Vendor Name</TableHead>
-                  <TableHead>Contact Person</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>GST Number</TableHead>
-                  <TableHead>Total Purchases</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Vendor Name</TableHead><TableHead>Contact Person</TableHead><TableHead>Phone</TableHead>
+                  <TableHead>GST Number</TableHead><TableHead>Total Purchases</TableHead><TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {vendors.map((v) => (
+                {paginated.map(v => (
                   <TableRow key={v.id}>
                     <TableCell className="font-medium">{v.name}</TableCell>
                     <TableCell>{v.contactPerson}</TableCell>
@@ -156,6 +163,15 @@ export default function Vendors() {
                 ))}
               </TableBody>
             </Table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>

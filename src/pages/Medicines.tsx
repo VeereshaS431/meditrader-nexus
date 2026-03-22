@@ -13,6 +13,7 @@ import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
 const emptyMed = { name: '', hsnCode: '', pack: '', category: '', manufacturer: '', avgPurchasePrice: 0, sellingPrice: 0, gstPercent: 5, currentStock: 0, reorderLevel: 20 };
+const ITEMS_PER_PAGE = 10;
 
 export default function Medicines() {
   const { medicines, addMedicine, updateMedicine, deleteMedicine } = useStore();
@@ -21,6 +22,7 @@ export default function Medicines() {
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState(emptyMed);
   const [editId, setEditId] = useState('');
+  const [page, setPage] = useState(1);
   const { toast } = useToast();
 
   const filtered = medicines.filter(m =>
@@ -28,18 +30,18 @@ export default function Medicines() {
     m.category.toLowerCase().includes(search.toLowerCase()) ||
     m.hsnCode.includes(search)
   );
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const handleAdd = () => {
     if (!form.name) { toast({ title: "Error", description: "Medicine name is required", variant: "destructive" }); return; }
     addMedicine({ ...form, id: crypto.randomUUID() });
-    setForm(emptyMed);
-    setAddOpen(false);
+    setForm(emptyMed); setAddOpen(false);
     toast({ title: "Success", description: "Medicine added successfully" });
   };
 
   const handleEdit = () => {
-    updateMedicine(editId, form);
-    setEditOpen(false);
+    updateMedicine(editId, form); setEditOpen(false);
     toast({ title: "Updated", description: "Medicine updated successfully" });
   };
 
@@ -83,12 +85,8 @@ export default function Medicines() {
         <Button className="gap-2" onClick={() => { setForm(emptyMed); setAddOpen(true); }}><Plus className="h-4 w-4" />Add Medicine</Button>
       </div>
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Add New Medicine</DialogTitle></DialogHeader>{renderForm(handleAdd, "Add Medicine")}</DialogContent>
-      </Dialog>
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Edit Medicine</DialogTitle></DialogHeader>{renderForm(handleEdit, "Update Medicine")}</DialogContent>
-      </Dialog>
+      <Dialog open={addOpen} onOpenChange={setAddOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Add New Medicine</DialogTitle></DialogHeader>{renderForm(handleAdd, "Add Medicine")}</DialogContent></Dialog>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Edit Medicine</DialogTitle></DialogHeader>{renderForm(handleEdit, "Update Medicine")}</DialogContent></Dialog>
 
       <div className="grid gap-4 md:grid-cols-4">
         {[
@@ -110,7 +108,7 @@ export default function Medicines() {
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search medicines..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <Input placeholder="Search medicines..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
       </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -125,7 +123,7 @@ export default function Medicines() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((med) => (
+                {paginated.map(med => (
                   <TableRow key={med.id}>
                     <TableCell className="font-medium">{med.name}</TableCell>
                     <TableCell className="font-mono text-sm">{med.hsnCode}</TableCell>
@@ -149,6 +147,15 @@ export default function Medicines() {
                 ))}
               </TableBody>
             </Table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
