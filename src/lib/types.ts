@@ -42,6 +42,13 @@ export interface PurchaseItem {
   amount: number;
 }
 
+export interface Payment {
+  id: string;
+  date: string;
+  amount: number;
+  notes?: string;
+}
+
 export interface Purchase {
   id: string;
   invoiceNumber: string;
@@ -56,6 +63,9 @@ export interface Purchase {
   netPayable: number;
   receiptUrl?: string;
   notes?: string;
+  paymentMode: 'cash' | 'credit';
+  payments: Payment[];
+  paidAmount: number;
 }
 
 export interface SaleItem {
@@ -85,6 +95,9 @@ export interface Sale {
   sgst: number;
   netPayable: number;
   profit: number;
+  paymentMode: 'cash' | 'credit';
+  payments: Payment[];
+  paidAmount: number;
 }
 
 export interface MedicalShop {
