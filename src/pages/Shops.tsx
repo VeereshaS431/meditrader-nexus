@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +13,7 @@ import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
 const emptyShop = { name: '', ownerName: '', phone: '', email: '', address: '', gstNumber: '', dlNumber: '' };
+const ITEMS_PER_PAGE = 10;
 
 export default function Shops() {
   const { shops, sales, addShop, updateShop, deleteShop } = useStore();
@@ -22,7 +23,16 @@ export default function Shops() {
   const [form, setForm] = useState(emptyShop);
   const [editId, setEditId] = useState('');
   const [viewId, setViewId] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const { toast } = useToast();
+
+  const filtered = shops.filter(s =>
+    s.name.toLowerCase().includes(search.toLowerCase()) ||
+    s.ownerName.toLowerCase().includes(search.toLowerCase())
+  );
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const handleAdd = () => {
     if (!form.name) { toast({ title: "Error", description: "Shop name is required", variant: "destructive" }); return; }
@@ -32,8 +42,7 @@ export default function Shops() {
   };
 
   const handleEdit = () => {
-    updateShop(editId, form);
-    setEditOpen(false);
+    updateShop(editId, form); setEditOpen(false);
     toast({ title: "Updated", description: "Shop updated successfully" });
   };
 
@@ -50,6 +59,10 @@ export default function Shops() {
 
   const shopSales = sales.filter(s => s.shopId === viewId);
   const viewShop = shops.find(s => s.id === viewId);
+
+  const shopCreditSales = shopSales.filter(s => s.paymentMode === 'credit');
+  const totalPending = shopCreditSales.reduce((s, sale) => s + (sale.netPayable - sale.paidAmount), 0);
+  const totalReceived = shopSales.reduce((s, sale) => s + sale.paidAmount, 0);
 
   const renderForm = (onSubmit: () => void, btnText: string) => (
     <div className="space-y-4">
@@ -76,6 +89,11 @@ export default function Shops() {
         <Button className="gap-2" onClick={() => { setForm(emptyShop); setAddOpen(true); }}><Plus className="h-4 w-4" />Add Shop</Button>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input placeholder="Search shops..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
+      </div>
+
       <Dialog open={addOpen} onOpenChange={setAddOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Add New Medical Shop</DialogTitle></DialogHeader>{renderForm(handleAdd, "Add Shop")}</DialogContent></Dialog>
       <Dialog open={editOpen} onOpenChange={setEditOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Edit Medical Shop</DialogTitle></DialogHeader>{renderForm(handleEdit, "Update Shop")}</DialogContent></Dialog>
 
@@ -84,13 +102,14 @@ export default function Shops() {
           <DialogHeader><DialogTitle>{viewShop?.name} - Sales History</DialogTitle></DialogHeader>
           {viewShop && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4 rounded-lg bg-muted p-4">
+              <div className="grid grid-cols-4 gap-4 rounded-lg bg-muted p-4">
                 <div><p className="text-sm text-muted-foreground">Owner</p><p className="font-medium">{viewShop.ownerName}</p></div>
                 <div><p className="text-sm text-muted-foreground">GST</p><p className="font-medium font-mono text-xs">{viewShop.gstNumber || '-'}</p></div>
-                <div><p className="text-sm text-muted-foreground">Total Sales</p><p className="font-medium">₹{viewShop.totalSales.toLocaleString()}</p></div>
+                <div><p className="text-sm text-muted-foreground">Received</p><p className="font-medium text-success">₹{totalReceived.toLocaleString()}</p></div>
+                <div><p className="text-sm text-muted-foreground">Pending</p><p className="font-medium text-destructive">₹{totalPending.toLocaleString()}</p></div>
               </div>
               <Table>
-                <TableHeader><TableRow><TableHead>Invoice #</TableHead><TableHead>Date</TableHead><TableHead>Items</TableHead><TableHead>Net Payable</TableHead><TableHead>Profit</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Invoice #</TableHead><TableHead>Date</TableHead><TableHead>Items</TableHead><TableHead>Net Payable</TableHead><TableHead>Mode</TableHead><TableHead>Received</TableHead><TableHead>Pending</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {shopSales.map(sale => (
                     <TableRow key={sale.id}>
@@ -98,10 +117,12 @@ export default function Shops() {
                       <TableCell>{new Date(sale.saleDate).toLocaleDateString('en-IN')}</TableCell>
                       <TableCell>{sale.items.length} items</TableCell>
                       <TableCell>₹{sale.netPayable.toLocaleString()}</TableCell>
-                      <TableCell className="text-success">₹{sale.profit.toLocaleString()}</TableCell>
+                      <TableCell><Badge variant={sale.paymentMode === 'cash' ? 'secondary' : 'outline'}>{sale.paymentMode}</Badge></TableCell>
+                      <TableCell className="text-success">₹{sale.paidAmount.toLocaleString()}</TableCell>
+                      <TableCell className="text-destructive">₹{(sale.netPayable - sale.paidAmount).toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
-                  {shopSales.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No sales found</TableCell></TableRow>}
+                  {shopSales.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No sales found</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </div>
@@ -111,7 +132,7 @@ export default function Shops() {
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <Card className="shadow-soft">
-          <CardHeader><CardTitle>All Medical Shops ({shops.length})</CardTitle></CardHeader>
+          <CardHeader><CardTitle>All Medical Shops ({filtered.length})</CardTitle></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
@@ -121,7 +142,7 @@ export default function Shops() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {shops.map(shop => (
+                {paginated.map(shop => (
                   <TableRow key={shop.id}>
                     <TableCell className="font-medium">{shop.name}</TableCell>
                     <TableCell>{shop.ownerName}</TableCell>
@@ -139,6 +160,15 @@ export default function Shops() {
                 ))}
               </TableBody>
             </Table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
